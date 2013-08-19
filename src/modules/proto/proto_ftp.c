@@ -288,7 +288,7 @@ static int proto_ftp_process(void *proto_priv, struct packet *p, struct proto_pr
 
 			if (len < 4) { // Client commands are at least 4 bytes long
 				pomlog(POMLOG_DEBUG "Too short or invalid query from client");
-				priv->flags |= PROTO_SMTP_FLAG_INVALID;
+				priv->flags |= PROTO_FTP_FLAG_INVALID;
 				return POM_OK;
 			}
 
@@ -304,17 +304,14 @@ static int proto_ftp_process(void *proto_priv, struct packet *p, struct proto_pr
 			}
 
 			if ((i < 4)) {
-				pomlog(POMLOG_DEBUG "Recieved invalid client command");
-				priv->flags |= PROTO_SMTP_FLAG_INVALID;
+				pomlog(POMLOG_DEBUG "Received invalid client command");
+				priv->flags |= PROTO_FTP_FLAG_INVALID;
 				return POM_OK;
 			}
 
 			if (!strncasecmp(line, "DATA", strlen("DATA")) && len == strlen("DATA")) {
-				priv->flags |= PROTO_SMTP_FLAG_CLIENT_DATA;
-			} else if (!strncasecmp(line, "STARTTLS", strlen("STARTTLS")) && len == strlen("STARTTLS")) {
-				priv->flags |= PROTO_SMTP_FLAG_STARTTLS;
+				priv->flags |= PROTO_FTP_FLAG_CLIENT_DATA;
 			}
-
 
 			if (event_has_listener(ppriv->evt_cmd)) {
 				struct event *evt = event_alloc(ppriv->evt_cmd);
@@ -327,14 +324,14 @@ static int proto_ftp_process(void *proto_priv, struct packet *p, struct proto_pr
 					cmdlen = space - line;
 
 				struct data *evt_data = event_get_data(evt);
-				PTYPE_STRING_SETVAL_N(evt_data[proto_smtp_cmd_name].value, line, cmdlen);
-				data_set(evt_data[proto_smtp_cmd_name]);
+				PTYPE_STRING_SETVAL_N(evt_data[proto_ftp_cmd_name].value, line, cmdlen);
+				data_set(evt_data[proto_ftp_cmd_name]);
 				if (space) {
-					PTYPE_STRING_SETVAL_N(evt_data[proto_smtp_cmd_arg].value, space + 1, len - 1 - cmdlen);
-					data_set(evt_data[proto_smtp_cmd_arg]);
+					PTYPE_STRING_SETVAL_N(evt_data[proto_ftp_cmd_arg].value, space + 1, len - 1 - cmdlen);
+					data_set(evt_data[proto_ftp_cmd_arg]);
 				}
 
-				if (priv->flags & PROTO_SMTP_FLAG_CLIENT_DATA) {
+				if (priv->flags & PROTO_FTP_FLAG_CLIENT_DATA) {
 					// The event ends at the end of the message
 					priv->data_evt = evt;
 					return event_process_begin(evt, stack, stack_index, p->ts);
