@@ -231,7 +231,7 @@ static int proto_smtp_process(void *proto_priv, struct packet *p, struct proto_p
 						// Thus we mark this connection as invalid. Most MTA will send at worst the last
 						// 3 bytes of the end sequence in a sequence packet
 						if (i != plen || (priv->data_end_pos >= 2 && plen < 3)) {
-							pomlog(POMLOG_DEBUG "The final line was not at the of a packet as expected !");
+							pomlog(POMLOG_DEBUG "The final line was not at the end of a packet as expected !");
 							priv->flags |= PROTO_SMTP_FLAG_INVALID;
 							event_process_end(priv->data_evt);
 							priv->data_evt = NULL;

@@ -27,7 +27,7 @@
 #define SMTP_MAX_LINE 4096
 
 // if it's invalid
-#define PROTO_SMTP_FLAG_INVALID				0x1
+#define PROTO_FTP_CODE_INVALID				32     // Suspected errors in data block
 #define PROTO_FTP_CODE_CLIENT_DATA			150
 #define PROTO_FTP_CODE_CLIENT_DATA_END		226
 
