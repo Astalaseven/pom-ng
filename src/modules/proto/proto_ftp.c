@@ -350,21 +350,21 @@ static int proto_ftp_process(void *proto_priv, struct packet *p, struct proto_pr
 
 }
 
-static int proto_smtp_post_process(void *proto_priv, struct packet *p, struct proto_process_stack *stack, unsigned int stack_index) {
+static int proto_ftp_post_process(void *proto_priv, struct packet *p, struct proto_process_stack *stack, unsigned int stack_index) {
 
 	struct conntrack_entry *ce = stack[stack_index].ce;
-	struct proto_smtp_conntrack_priv *priv = ce->priv;
+	struct proto_ftp_conntrack_priv *priv = ce->priv;
 
 	if (!priv)
 		return PROTO_OK;
 	
-	if (priv->flags & PROTO_SMTP_FLAG_CLIENT_DATA_END) {
+	if (priv->flags & PROTO_FTP_FLAG_CLIENT_DATA_END) {
 		if (priv->data_evt) {
 			if (event_process_end(priv->data_evt) != POM_OK)
 				return PROTO_ERR;
 			priv->data_evt = NULL;
 		}
-		priv->flags &= ~PROTO_SMTP_FLAG_CLIENT_DATA_END;
+		priv->flags &= ~PROTO_FTP_FLAG_CLIENT_DATA_END;
 		priv->data_end_pos = 0;
 	}
 
