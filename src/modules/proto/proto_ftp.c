@@ -250,7 +250,6 @@ static int proto_ftp_process(void *proto_priv, struct packet *p, struct proto_pr
 					}
 				}
 
-
 				if (!priv->reply_evt) {
 					priv->reply_evt = event_alloc(ppriv->evt_reply);
 					if (!priv->reply_evt)
@@ -275,7 +274,6 @@ static int proto_ftp_process(void *proto_priv, struct packet *p, struct proto_pr
 					event_process_begin(priv->reply_evt, stack, stack_index, p->ts);
 			}
 
-
 			if (line[3] != '-') {
 				// Last line in the response
 				if (priv->reply_evt) {
@@ -283,16 +281,6 @@ static int proto_ftp_process(void *proto_priv, struct packet *p, struct proto_pr
 					priv->reply_evt = NULL;
 				}
 			}
-			
-/*			if (priv->flags & PROTO_SMTP_FLAG_STARTTLS) {
-				// The last command was STARTTLS
-				priv->flags &= ~PROTO_SMTP_FLAG_STARTTLS;
-				if (code == 220) {
-					// TLS has the go, we can't parse  from now so mark as invalid
-					priv->flags |= PROTO_SMTP_FLAG_INVALID;
-					return POM_OK;
-				}
-			}*/
 
 		} else {
 
