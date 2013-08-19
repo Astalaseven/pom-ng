@@ -26,14 +26,13 @@
 
 #define SMTP_MAX_LINE 4096
 
-// Either if it's invalid or encrypted
-#define PROTO_SMTP_FLAG_INVALID			0x1
-#define PROTO_SMTP_FLAG_CLIENT_DATA		0x2
-#define PROTO_SMTP_FLAG_CLIENT_DATA_END		0x4
-#define PROTO_SMTP_FLAG_STARTTLS		0x8
+// if it's invalid
+#define PROTO_SMTP_FLAG_INVALID				0x1
+#define PROTO_FTP_CODE_CLIENT_DATA			150
+#define PROTO_FTP_CODE_CLIENT_DATA_END		226
 
-#define PROTO_SMTP_DATA_END		"\r\n.\r\n"
-#define PROTO_SMTP_DATA_END_LEN		5
+#define PROTO_FTP_DATA_END			"QUIT\r\n"
+#define PROTO_FTP_DATA_END_LEN		8
 
 struct proto_smtp_priv {
 

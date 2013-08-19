@@ -47,7 +47,7 @@ struct mod_reg_info* proto_tcp_reg_info() {
 	reg_info.api_ver = MOD_API_VER;
 	reg_info.register_func = proto_tcp_mod_register;
 	reg_info.unregister_func = proto_tcp_mod_unregister;
-	reg_info.dependencies = "proto_http, proto_smtp, ptype_bool, ptype_uint8, ptype_uint16, ptype_uint32";
+	reg_info.dependencies = "proto_ftp, proto_http, proto_smtp, ptype_bool, ptype_uint8, ptype_uint16, ptype_uint32";
 
 	return &reg_info;
 }
@@ -170,9 +170,10 @@ static int proto_tcp_init(struct proto *proto, struct registry_instance *i) {
 
 	p = NULL;
 
+	priv->proto_ftp = proto_get("ftp");
 	priv->proto_http = proto_get("http");
 	priv->proto_smtp = proto_get("smtp");
-	if (!priv->proto_http || !priv->proto_smtp)
+	if (!priv->proto_ftp || !priv->proto_http || !priv->proto_smtp)
 		goto err;
 
 
@@ -316,7 +317,9 @@ static int proto_tcp_process(void *proto_priv, struct packet *p, struct proto_pr
 		// TODO improve this
 		uint16_t sport = ntohs(hdr->th_sport);
 		uint16_t dport = ntohs(hdr->th_dport);
-		if (sport == 80 || dport == 80)
+		if (dport == 21)
+			priv->proto = ppriv->proto_ftp;
+		else if (sport == 80 || dport == 80)
 			priv->proto = ppriv->proto_http;
 		else if (sport == 25 || dport == 25)
 			priv->proto = ppriv->proto_smtp;

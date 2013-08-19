@@ -22,7 +22,7 @@
 #include <pom-ng/proto.h>
 #include <pom-ng/event.h>
 
-#include "proto_smtp.h"
+#include "proto_ftp.h"
 #include <pom-ng/ptype_string.h>
 #include <pom-ng/ptype_uint16.h>
 
@@ -30,113 +30,113 @@
 #include <stdio.h>
 
 
-struct mod_reg_info* proto_smtp_reg_info() {
+struct mod_reg_info* proto_ftp_reg_info() {
 
 	static struct mod_reg_info reg_info = { 0 };
 	reg_info.api_ver = MOD_API_VER;
-	reg_info.register_func = proto_smtp_mod_register;
-	reg_info.unregister_func = proto_smtp_mod_unregister;
+	reg_info.register_func = proto_ftp_mod_register;
+	reg_info.unregister_func = proto_ftp_mod_unregister;
 	reg_info.dependencies = "ptype_string, ptype_uint16";
 
 	return &reg_info;
 }
 
-static int proto_smtp_mod_register(struct mod_reg *mod) {
+static int proto_ftp_mod_register(struct mod_reg *mod) {
 
-	static struct proto_reg_info proto_smtp = { 0 };
-	proto_smtp.name = "smtp";
-	proto_smtp.api_ver = PROTO_API_VER;
-	proto_smtp.mod = mod;
+	static struct proto_reg_info proto_ftp = { 0 };
+	proto_ftp.name = "ftp";
+	proto_ftp.api_ver = PROTO_API_VER;
+	proto_ftp.mod = mod;
 
 	static struct conntrack_info ct_info = { 0 };
 
 	ct_info.default_table_size = 1; // No hashing done here
-	ct_info.cleanup_handler = proto_smtp_conntrack_cleanup;
-	proto_smtp.ct_info = &ct_info;
+	ct_info.cleanup_handler = proto_ftp_conntrack_cleanup;
+	proto_ftp.ct_info = &ct_info;
 
-	proto_smtp.init = proto_smtp_init;
-	proto_smtp.process = proto_smtp_process;
-	proto_smtp.post_process = proto_smtp_post_process;
-	proto_smtp.cleanup = proto_smtp_cleanup;
+	proto_ftp.init = proto_ftp_init;
+	proto_ftp.process = proto_ftp_process;
+	proto_ftp.post_process = proto_ftp_post_process;
+	proto_ftp.cleanup = proto_ftp_cleanup;
 
-	if (proto_register(&proto_smtp) == POM_OK)
+	if (proto_register(&proto_ftp) == POM_OK)
 		return POM_OK;
 
 	return POM_ERR;
 
 }
 
-static int proto_smtp_init(struct proto *proto, struct registry_instance *i) {
+static int proto_ftp_init(struct proto *proto, struct registry_instance *i) {
 
-	struct proto_smtp_priv *priv = malloc(sizeof(struct proto_smtp_priv));
+	struct proto_ftp_priv *priv = malloc(sizeof(struct proto_ftp_priv));
 	if (!priv) {
-		pom_oom(sizeof(struct proto_smtp_priv));
+		pom_oom(sizeof(struct proto_ftp_priv));
 		return POM_ERR;
 	}
-	memset(priv, 0, sizeof(struct proto_smtp_priv));
+	memset(priv, 0, sizeof(struct proto_ftp_priv));
 
 	proto_set_priv(proto, priv);
 
-	// Register the smtp_cmd event
-	static struct data_item_reg evt_cmd_data_items[PROTO_SMTP_EVT_CMD_DATA_COUNT] = { { 0 } };
-	evt_cmd_data_items[proto_smtp_cmd_name].name = "name";
-	evt_cmd_data_items[proto_smtp_cmd_name].value_type = ptype_get_type("string");
-	evt_cmd_data_items[proto_smtp_cmd_arg].name = "arg";
-	evt_cmd_data_items[proto_smtp_cmd_arg].value_type = ptype_get_type("string");
+	// Register the ftp_cmd event
+	static struct data_item_reg evt_cmd_data_items[PROTO_FTP_EVT_CMD_DATA_COUNT] = { { 0 } };
+	evt_cmd_data_items[proto_ftp_cmd_name].name = "name";
+	evt_cmd_data_items[proto_ftp_cmd_name].value_type = ptype_get_type("string");
+	evt_cmd_data_items[proto_ftp_cmd_arg].name = "arg";
+	evt_cmd_data_items[proto_ftp_cmd_arg].value_type = ptype_get_type("string");
 
 	static struct data_reg evt_cmd_data = {
 		.items = evt_cmd_data_items,
-		.data_count = PROTO_SMTP_EVT_CMD_DATA_COUNT
+		.data_count = PROTO_FTP_EVT_CMD_DATA_COUNT
 	};
 
-	static struct event_reg_info proto_smtp_evt_cmd = { 0 };
-	proto_smtp_evt_cmd.source_name = "proto_smtp";
-	proto_smtp_evt_cmd.source_obj = proto;
-	proto_smtp_evt_cmd.name = "smtp_cmd";
-	proto_smtp_evt_cmd.description = "SMTP command from the client";
-	proto_smtp_evt_cmd.data_reg = &evt_cmd_data;
+	static struct event_reg_info proto_ftp_evt_cmd = { 0 };
+	proto_ftp_evt_cmd.source_name = "proto_ftp";
+	proto_ftp_evt_cmd.source_obj = proto;
+	proto_ftp_evt_cmd.name = "ftp_cmd";
+	proto_ftp_evt_cmd.description = "FTP command from the client";
+	proto_ftp_evt_cmd.data_reg = &evt_cmd_data;
 
-	priv->evt_cmd = event_register(&proto_smtp_evt_cmd);
+	priv->evt_cmd = event_register(&proto_ftp_evt_cmd);
 	if (!priv->evt_cmd)
 		goto err;
 
-	// Register the smtp_reply event
-	static struct data_item_reg evt_reply_data_items[PROTO_SMTP_EVT_CMD_DATA_COUNT] = { { 0 } };
-	evt_reply_data_items[proto_smtp_reply_code].name = "code";
-	evt_reply_data_items[proto_smtp_reply_code].value_type = ptype_get_type("uint16");
-	evt_reply_data_items[proto_smtp_reply_text].name = "text";
-	evt_reply_data_items[proto_smtp_reply_text].flags = DATA_REG_FLAG_LIST;
+	// Register the ftp_reply event
+	static struct data_item_reg evt_reply_data_items[PROTO_FTP_EVT_CMD_DATA_COUNT] = { { 0 } };
+	evt_reply_data_items[proto_ftp_reply_code].name = "code";
+	evt_reply_data_items[proto_ftp_reply_code].value_type = ptype_get_type("uint16");
+	evt_reply_data_items[proto_ftp_reply_text].name = "text";
+	evt_reply_data_items[proto_ftp_reply_text].flags = DATA_REG_FLAG_LIST;
 
 	static struct data_reg evt_reply_data = {
 		.items = evt_reply_data_items,
-		.data_count = PROTO_SMTP_EVT_REPLY_DATA_COUNT
+		.data_count = PROTO_FTP_EVT_REPLY_DATA_COUNT
 	};
 
-	static struct event_reg_info proto_smtp_evt_reply = { 0 };
-	proto_smtp_evt_reply.source_name = "proto_smtp";
-	proto_smtp_evt_reply.source_obj = proto;
-	proto_smtp_evt_reply.name = "smtp_reply";
-	proto_smtp_evt_reply.description = "SMTP command from the client";
-	proto_smtp_evt_reply.data_reg = &evt_reply_data;
+	static struct event_reg_info proto_ftp_evt_reply = { 0 };
+	proto_ftp_evt_reply.source_name = "proto_ftp";
+	proto_ftp_evt_reply.source_obj = proto;
+	proto_ftp_evt_reply.name = "ftp_reply";
+	proto_ftp_evt_reply.description = "FTP command from the client";
+	proto_ftp_evt_reply.data_reg = &evt_reply_data;
 
-	priv->evt_reply = event_register(&proto_smtp_evt_reply);
+	priv->evt_reply = event_register(&proto_ftp_evt_reply);
 	if (!priv->evt_reply)
 		goto err;
 
 	return POM_OK;
 
 err:
-	proto_smtp_cleanup(priv);
+	proto_ftp_cleanup(priv);
 	return POM_ERR;
 }
 
 
-static int proto_smtp_cleanup(void *proto_priv) {
+static int proto_ftp_cleanup(void *proto_priv) {
 	
 	if (!proto_priv)
 		return POM_OK;
 
-	struct proto_smtp_priv *priv = proto_priv;
+	struct proto_ftp_priv *priv = proto_priv;
 	if (priv->evt_cmd)
 		event_unregister(priv->evt_cmd);
 	if (priv->evt_reply)
@@ -203,13 +203,8 @@ static int proto_smtp_process(void *proto_priv, struct packet *p, struct proto_p
 		// Some check to do prior to parse the payload
 		
 		if (s->direction == POM_DIR_REVERSE(priv->server_direction)) {
-			if (priv->flags & PROTO_SMTP_FLAG_STARTTLS) {
-				// Last command was a STARTTLS command, this is the TLS negociation
-				// Since we can't parse this, mark it as invalid
-				priv->flags |= PROTO_SMTP_FLAG_INVALID;
-				return PROTO_OK;
-
-			} else if (priv->flags & PROTO_SMTP_FLAG_CLIENT_DATA) {
+			
+			if (priv->flags & PROTO_SMTP_FLAG_CLIENT_DATA) {
 
 				// We are receiving payload data, check where the end is
 				void *pload;
@@ -219,7 +214,7 @@ static int proto_smtp_process(void *proto_priv, struct packet *p, struct proto_p
 				if (!plen)
 					return PROTO_OK;
 
-				// Look for the "<CR><LF>.<CR><LF>" sequence
+				// Look for the "QUIT\r\n" sequence
 				if (priv->data_end_pos > 0) {
 					
 					// The previous packet ended with something that might be the final sequence
