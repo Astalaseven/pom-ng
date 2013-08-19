@@ -200,30 +200,6 @@ static int proto_ftp_process(void *proto_priv, struct packet *p, struct proto_pr
 	unsigned int len = 0;
 	while (1) {
 
-		// Some check to do prior to parse the payload
-		
-		if (s->direction == POM_DIR_REVERSE(priv->server_direction)) {
-			
-			// Check if the end of the payload contains part of the "QUIT\r\n" sequence
-			int i, found = 0;
-			for (i = 1 ; (i < PROTO_FTP_DATA_END_LEN) && (i <= plen); i++) {
-				if (!memcmp(pload + plen - i, PROTO_FTP_DATA_END, i)) {
-					found = 1;
-					break;
-				}
-			}
-
-			if (found)
-				priv->data_end_pos = i;
-
-			s_next->pload = pload;
-			s_next->plen = plen;
-		}
-
-		return PROTO_OK;
-			}
-		}
-
 		// Process commands
 		if (packet_stream_parser_get_line(parser, &line, &len) != POM_OK)
 			return PROTO_ERR;
