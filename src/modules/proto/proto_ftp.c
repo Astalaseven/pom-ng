@@ -147,7 +147,7 @@ static int proto_ftp_cleanup(void *proto_priv) {
 	return POM_OK;
 }
 
-static int proto_smtp_process(void *proto_priv, struct packet *p, struct proto_process_stack *stack, unsigned int stack_index) {
+static int proto_ftp_process(void *proto_priv, struct packet *p, struct proto_process_stack *stack, unsigned int stack_index) {
 
 	struct proto_process_stack *s = &stack[stack_index];
 	struct proto_process_stack *s_next = &stack[stack_index + 1];
@@ -160,16 +160,16 @@ static int proto_smtp_process(void *proto_priv, struct packet *p, struct proto_p
 	// There should no need to keep the lock here since we are in the packet_stream lock from proto_tcp
 	conntrack_unlock(s->ce);
 
-	struct proto_smtp_priv *ppriv = proto_priv;
+	struct proto_ftp_priv *ppriv = proto_priv;
 
-	struct proto_smtp_conntrack_priv *priv = s->ce->priv;
+	struct proto_ftp_conntrack_priv *priv = s->ce->priv;
 	if (!priv) {
-		priv = malloc(sizeof(struct proto_smtp_conntrack_priv));
+		priv = malloc(sizeof(struct proto_ftp_conntrack_priv));
 		if (!priv) {
-			pom_oom(sizeof(struct proto_smtp_conntrack_priv));
+			pom_oom(sizeof(struct proto_ftp_conntrack_priv));
 			return PROTO_ERR;
 		}
-		memset(priv, 0, sizeof(struct proto_smtp_conntrack_priv));
+		memset(priv, 0, sizeof(struct proto_ftp_conntrack_priv));
 
 		priv->parser[POM_DIR_FWD] = packet_stream_parser_alloc(SMTP_MAX_LINE, PACKET_STREAM_PARSER_FLAG_TRIM);
 		if (!priv->parser[POM_DIR_FWD]) {
@@ -189,7 +189,7 @@ static int proto_smtp_process(void *proto_priv, struct packet *p, struct proto_p
 		s->ce->priv = priv;
 	}
 
-	if (priv->flags & PROTO_SMTP_FLAG_INVALID)
+	if (priv->flags & PROTO_FTP_CODE_INVALID)
 		return PROTO_OK;
 
 	struct packet_stream_parser *parser = priv->parser[s->direction];
@@ -204,7 +204,7 @@ static int proto_smtp_process(void *proto_priv, struct packet *p, struct proto_p
 		
 		if (s->direction == POM_DIR_REVERSE(priv->server_direction)) {
 			
-			if (priv->flags & PROTO_SMTP_FLAG_CLIENT_DATA) {
+			if (priv->flags & PROTO_FTP_CODE_CLIENT_DATA) {
 
 				// We are receiving payload data, check where the end is
 				void *pload;
@@ -220,8 +220,8 @@ static int proto_smtp_process(void *proto_priv, struct packet *p, struct proto_p
 					// The previous packet ended with something that might be the final sequence
 					// Check if we have the rest
 					int i, found = 1;
-					for (i = 0; i < PROTO_SMTP_DATA_END_LEN - priv->data_end_pos && i <= plen; i++) {
-						if (*(char*)(pload + i) != PROTO_SMTP_DATA_END[priv->data_end_pos + i]) {
+					for (i = 0; i < PROTO_FTP_DATA_END_LEN - priv->data_end_pos && i <= plen; i++) {
+						if (*(char*)(pload + i) != PROTO_FTP_DATA_END[priv->data_end_pos + i]) {
 							found = 0;
 							break;
 						}
@@ -230,18 +230,18 @@ static int proto_smtp_process(void *proto_priv, struct packet *p, struct proto_p
 						// If we have already processed the dot after <CR><LF> there is no way to remove it
 						// Thus we mark this connection as invalid. Most MTA will send at worst the last
 						// 3 bytes of the end sequence in a sequence packet
-						if (i != plen || (priv->data_end_pos >= 2 && plen < 3)) {
+/*						if (i != plen || (priv->data_end_pos >= 2 && plen < 3)) {
 							pomlog(POMLOG_DEBUG "The final line was not at the end of a packet as expected !");
 							priv->flags |= PROTO_SMTP_FLAG_INVALID;
 							event_process_end(priv->data_evt);
 							priv->data_evt = NULL;
 							return PROTO_OK;
-						}
+						}*/
 						s_next->pload = pload;
-						s_next->plen = plen - PROTO_SMTP_DATA_END_LEN + 2; // The last line return is part of the payload
-						priv->flags |= PROTO_SMTP_FLAG_CLIENT_DATA_END;
+						s_next->plen = plen - PROTO_FTP_DATA_END_LEN + 2; // The last line return is part of the payload
+						priv->flags |= PROTO_FTP_CODE_CLIENT_DATA_END;
 
-						priv->flags &= ~PROTO_SMTP_FLAG_CLIENT_DATA;
+						priv->flags &= ~PROTO_FTP_CODE_CLIENT_DATA;
 						priv->data_end_pos = 0;
 
 						return PROTO_OK;
@@ -250,26 +250,26 @@ static int proto_smtp_process(void *proto_priv, struct packet *p, struct proto_p
 				}
 
 
-				char *dotline = strstr(pload, PROTO_SMTP_DATA_END);
-				if (dotline) {
-					if (pload + plen - PROTO_SMTP_DATA_END_LEN != dotline) {
+				char *quitline = strstr(pload, PROTO_FTP_DATA_END);
+				if (quitline) {
+					if (pload + plen - PROTO_FTP_DATA_END_LEN != quitline) {
 						pomlog(POMLOG_DEBUG "The final line was not at the of a packet as expected !");
-						priv->flags |= PROTO_SMTP_FLAG_INVALID;
+						priv->flags |= PROTO_FTP_CODE_INVALID;
 						event_process_end(priv->data_evt);
 						priv->data_evt = NULL;
 						return PROTO_OK;
 					}
 					s_next->pload = pload;
-					s_next->plen = plen - PROTO_SMTP_DATA_END_LEN + 2; // The last line return is part of the payload
-					priv->flags |= PROTO_SMTP_FLAG_CLIENT_DATA_END;
+					s_next->plen = plen - PROTO_FTP_DATA_END_LEN + 2; // The last line return is part of the payload
+					priv->flags |= PROTO_FTP_CODE_CLIENT_DATA_END;
 
-					priv->flags &= ~PROTO_SMTP_FLAG_CLIENT_DATA;
+					priv->flags &= ~PROTO_FTP_CODE_CLIENT_DATA;
 
 				} else {
-					// Check if the end of the payload contains part of the "<CR><LF>.<CR><LF>" sequence
+					// Check if the end of the payload contains part of the "QUIT\r\n" sequence
 					int i, found = 0;
-					for (i = 1 ; (i < PROTO_SMTP_DATA_END_LEN) && (i <= plen); i++) {
-						if (!memcmp(pload + plen - i, PROTO_SMTP_DATA_END, i)) {
+					for (i = 1 ; (i < PROTO_FTP_DATA_END_LEN) && (i <= plen); i++) {
+						if (!memcmp(pload + plen - i, PROTO_FTP_DATA_END, i)) {
 							found = 1;
 							break;
 						}
@@ -312,14 +312,14 @@ static int proto_smtp_process(void *proto_priv, struct packet *p, struct proto_p
 			if ((len < 5) || // Server response is 3 digit error code, a space or hyphen and then at least one letter of text
 				(line[3] != ' ' && line[3] != '-')) {
 				pomlog(POMLOG_DEBUG "Too short or invalid response from server");
-				priv->flags |= PROTO_SMTP_FLAG_INVALID;
+				priv->flags |= PROTO_FTP_CODE_INVALID;
 				return POM_OK;
 			}
 
 			int code = atoi(line);
 			if (code == 0) {
 				pomlog(POMLOG_DEBUG "Invalid response from server");
-				priv->flags |= PROTO_SMTP_FLAG_INVALID;
+				priv->flags |= PROTO_FTP_CODE_INVALID;
 				return POM_OK;
 			}
 
@@ -328,7 +328,7 @@ static int proto_smtp_process(void *proto_priv, struct packet *p, struct proto_p
 				struct data *evt_data = NULL;
 				if (priv->reply_evt) {
 					evt_data = event_get_data(priv->reply_evt);
-					uint16_t cur_code = *PTYPE_UINT16_GETVAL(evt_data[proto_smtp_reply_code].value);
+					uint16_t cur_code = *PTYPE_UINT16_GETVAL(evt_data[proto_ftp_reply_code].value);
 					if (cur_code != code) {
 						pomlog(POMLOG_WARN "Multiline code not the same as previous line : %hu -> %hu", cur_code, code);
 						event_process_end(priv->reply_evt);
@@ -343,8 +343,8 @@ static int proto_smtp_process(void *proto_priv, struct packet *p, struct proto_p
 						return PROTO_ERR;
 
 					evt_data = event_get_data(priv->reply_evt);
-					PTYPE_UINT16_SETVAL(evt_data[proto_smtp_reply_code].value, code);
-					data_set(evt_data[proto_smtp_reply_code]);
+					PTYPE_UINT16_SETVAL(evt_data[proto_ftp_reply_code].value, code);
+					data_set(evt_data[proto_ftp_reply_code]);
 
 				}
 
@@ -353,7 +353,7 @@ static int proto_smtp_process(void *proto_priv, struct packet *p, struct proto_p
 					if (!txt)
 						return PROTO_ERR;
 					PTYPE_STRING_SETVAL_N(txt, line + 4, len - 4);
-					if (data_item_add_ptype(evt_data, proto_smtp_reply_text, strdup("text"), txt) != POM_OK)
+					if (data_item_add_ptype(evt_data, proto_ftp_reply_text, strdup("text"), txt) != POM_OK)
 						return PROTO_ERR;
 				}
 				
@@ -370,7 +370,7 @@ static int proto_smtp_process(void *proto_priv, struct packet *p, struct proto_p
 				}
 			}
 			
-			if (priv->flags & PROTO_SMTP_FLAG_STARTTLS) {
+/*			if (priv->flags & PROTO_SMTP_FLAG_STARTTLS) {
 				// The last command was STARTTLS
 				priv->flags &= ~PROTO_SMTP_FLAG_STARTTLS;
 				if (code == 220) {
@@ -378,7 +378,7 @@ static int proto_smtp_process(void *proto_priv, struct packet *p, struct proto_p
 					priv->flags |= PROTO_SMTP_FLAG_INVALID;
 					return POM_OK;
 				}
-			}
+			}*/
 
 		} else {
 
