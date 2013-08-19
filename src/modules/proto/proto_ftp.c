@@ -368,7 +368,6 @@ static int proto_ftp_post_process(void *proto_priv, struct packet *p, struct pro
 		priv->data_end_pos = 0;
 	}
 
-
 	return POM_OK;
 }
 
@@ -398,7 +397,6 @@ static int proto_smtp_conntrack_cleanup(void *ce_priv) {
 			event_cleanup(priv->reply_evt);
 	}
 		
-
 	free(priv);
 
 	return POM_OK;
