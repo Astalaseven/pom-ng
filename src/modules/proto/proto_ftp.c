@@ -371,9 +371,9 @@ static int proto_ftp_post_process(void *proto_priv, struct packet *p, struct pro
 	return POM_OK;
 }
 
-static int proto_smtp_conntrack_cleanup(void *ce_priv) {
+static int proto_ftp_conntrack_cleanup(void *ce_priv) {
 
-	struct proto_smtp_conntrack_priv *priv = ce_priv;
+	struct proto_ftp_conntrack_priv *priv = ce_priv;
 	if (!priv)
 		return POM_OK;
 
@@ -402,8 +402,8 @@ static int proto_smtp_conntrack_cleanup(void *ce_priv) {
 	return POM_OK;
 }
 
-static int proto_smtp_mod_unregister() {
+static int proto_ftp_mod_unregister() {
 
-	return proto_unregister("smtp");
+	return proto_unregister("ftp");
 
 }
