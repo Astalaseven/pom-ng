@@ -189,7 +189,7 @@ static int proto_ftp_process(void *proto_priv, struct packet *p, struct proto_pr
 		s->ce->priv = priv;
 	}
 
-	if (priv->flags & PROTO_FTP_CODE_INVALID)
+	if (priv->flags & PROTO_FTP_FLAG_INVALID)
 		return PROTO_OK;
 
 	struct packet_stream_parser *parser = priv->parser[s->direction];
@@ -204,85 +204,23 @@ static int proto_ftp_process(void *proto_priv, struct packet *p, struct proto_pr
 		
 		if (s->direction == POM_DIR_REVERSE(priv->server_direction)) {
 			
-			if (priv->flags & PROTO_FTP_CODE_CLIENT_DATA) {
-
-				// We are receiving payload data, check where the end is
-				void *pload;
-				uint32_t plen;
-				packet_stream_parser_get_remaining(parser, &pload, &plen);
-
-				if (!plen)
-					return PROTO_OK;
-
-				// Look for the "QUIT\r\n" sequence
-				if (priv->data_end_pos > 0) {
-					
-					// The previous packet ended with something that might be the final sequence
-					// Check if we have the rest
-					int i, found = 1;
-					for (i = 0; i < PROTO_FTP_DATA_END_LEN - priv->data_end_pos && i <= plen; i++) {
-						if (*(char*)(pload + i) != PROTO_FTP_DATA_END[priv->data_end_pos + i]) {
-							found = 0;
-							break;
-						}
-					}
-					if (found) {
-						// If we have already processed the dot after <CR><LF> there is no way to remove it
-						// Thus we mark this connection as invalid. Most MTA will send at worst the last
-						// 3 bytes of the end sequence in a sequence packet
-/*						if (i != plen || (priv->data_end_pos >= 2 && plen < 3)) {
-							pomlog(POMLOG_DEBUG "The final line was not at the end of a packet as expected !");
-							priv->flags |= PROTO_SMTP_FLAG_INVALID;
-							event_process_end(priv->data_evt);
-							priv->data_evt = NULL;
-							return PROTO_OK;
-						}*/
-						s_next->pload = pload;
-						s_next->plen = plen - PROTO_FTP_DATA_END_LEN + 2; // The last line return is part of the payload
-						priv->flags |= PROTO_FTP_CODE_CLIENT_DATA_END;
-
-						priv->flags &= ~PROTO_FTP_CODE_CLIENT_DATA;
-						priv->data_end_pos = 0;
-
-						return PROTO_OK;
-					}
-					priv->data_end_pos = 0;
+			// Check if the end of the payload contains part of the "QUIT\r\n" sequence
+			int i, found = 0;
+			for (i = 1 ; (i < PROTO_FTP_DATA_END_LEN) && (i <= plen); i++) {
+				if (!memcmp(pload + plen - i, PROTO_FTP_DATA_END, i)) {
+					found = 1;
+					break;
 				}
+			}
 
+			if (found)
+				priv->data_end_pos = i;
 
-				char *quitline = strstr(pload, PROTO_FTP_DATA_END);
-				if (quitline) {
-					if (pload + plen - PROTO_FTP_DATA_END_LEN != quitline) {
-						pomlog(POMLOG_DEBUG "The final line was not at the of a packet as expected !");
-						priv->flags |= PROTO_FTP_CODE_INVALID;
-						event_process_end(priv->data_evt);
-						priv->data_evt = NULL;
-						return PROTO_OK;
-					}
-					s_next->pload = pload;
-					s_next->plen = plen - PROTO_FTP_DATA_END_LEN + 2; // The last line return is part of the payload
-					priv->flags |= PROTO_FTP_CODE_CLIENT_DATA_END;
+			s_next->pload = pload;
+			s_next->plen = plen;
+		}
 
-					priv->flags &= ~PROTO_FTP_CODE_CLIENT_DATA;
-
-				} else {
-					// Check if the end of the payload contains part of the "QUIT\r\n" sequence
-					int i, found = 0;
-					for (i = 1 ; (i < PROTO_FTP_DATA_END_LEN) && (i <= plen); i++) {
-						if (!memcmp(pload + plen - i, PROTO_FTP_DATA_END, i)) {
-							found = 1;
-							break;
-						}
-					}
-
-					if (found)
-						priv->data_end_pos = i;
-
-					s_next->pload = pload;
-					s_next->plen = plen;
-				}
-
-				return PROTO_OK;
+		return PROTO_OK;
 			}
 		}
 
@@ -312,14 +250,14 @@ static int proto_ftp_process(void *proto_priv, struct packet *p, struct proto_pr
 			if ((len < 5) || // Server response is 3 digit error code, a space or hyphen and then at least one letter of text
 				(line[3] != ' ' && line[3] != '-')) {
 				pomlog(POMLOG_DEBUG "Too short or invalid response from server");
-				priv->flags |= PROTO_FTP_CODE_INVALID;
+				priv->flags |= PROTO_FTP_FLAG_INVALID;
 				return POM_OK;
 			}
 
 			int code = atoi(line);
 			if (code == 0) {
 				pomlog(POMLOG_DEBUG "Invalid response from server");
-				priv->flags |= PROTO_FTP_CODE_INVALID;
+				priv->flags |= PROTO_FTP_FLAG_INVALID;
 				return POM_OK;
 			}
 

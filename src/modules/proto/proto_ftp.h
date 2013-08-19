@@ -27,9 +27,9 @@
 #define SMTP_MAX_LINE 4096
 
 // if it's invalid
-#define PROTO_FTP_CODE_INVALID				32     // Suspected errors in data block
-#define PROTO_FTP_CODE_CLIENT_DATA			150
-#define PROTO_FTP_CODE_CLIENT_DATA_END		226
+#define PROTO_FTP_FLAG_INVALID				32     // Suspected errors in data block
+#define PROTO_FTP_FLAG_CLIENT_DATA			150
+#define PROTO_FTP_FLAG_CLIENT_DATA_END		226
 
 #define PROTO_FTP_DATA_END			"QUIT\r\n"
 #define PROTO_FTP_DATA_END_LEN		8
