@@ -18,66 +18,66 @@
  *
  */
 
-#include "analyzer_rfc822.h"
+#include "analyzer_rfc959.h"
 
 #include <pom-ng/ptype_string.h>
 #include <pom-ng/mime.h>
 
-struct mod_reg_info* analyzer_rfc822_reg_info() {
+struct mod_reg_info* analyzer_rfc959_reg_info() {
 
 	static struct mod_reg_info reg_info;
 	memset(&reg_info, 0, sizeof(struct mod_reg_info));
 	reg_info.api_ver = MOD_API_VER;
-	reg_info.register_func = analyzer_rfc822_mod_register;
-	reg_info.unregister_func = analyzer_rfc822_mod_unregister;
+	reg_info.register_func = analyzer_rfc959_mod_register;
+	reg_info.unregister_func = analyzer_rfc959_mod_unregister;
 	reg_info.dependencies = "ptype_string";
 
 	return &reg_info;
 }
 
-static int analyzer_rfc822_mod_register(struct mod_reg *mod) {
+static int analyzer_rfc959_mod_register(struct mod_reg *mod) {
 
-	static struct analyzer_reg analyzer_rfc822;
-	memset(&analyzer_rfc822, 0, sizeof(struct analyzer_reg));
-	analyzer_rfc822.name = "rfc822";
-	analyzer_rfc822.api_ver = ANALYZER_API_VER;
-	analyzer_rfc822.mod = mod;
-	analyzer_rfc822.init = analyzer_rfc822_init;
+	static struct analyzer_reg analyzer_rfc959;
+	memset(&analyzer_rfc959, 0, sizeof(struct analyzer_reg));
+	analyzer_rfc959.name = "rfc959";
+	analyzer_rfc959.api_ver = ANALYZER_API_VER;
+	analyzer_rfc959.mod = mod;
+	analyzer_rfc959.init = analyzer_rfc959_init;
 
-	return analyzer_register(&analyzer_rfc822);
+	return analyzer_register(&analyzer_rfc959);
 
 }
 
-static int analyzer_rfc822_mod_unregister() {
+static int analyzer_rfc959_mod_unregister() {
 
-	return analyzer_unregister("rfc822");
+	return analyzer_unregister("rfc959");
 }
 
-static int analyzer_rfc822_init(struct analyzer *analyzer) {
+static int analyzer_rfc959_init(struct analyzer *analyzer) {
 
-	struct analyzer_pload_type *pload_type = analyzer_pload_type_get_by_name(ANALYZER_RFC822_PLOAD_TYPE);
+	struct analyzer_pload_type *pload_type = analyzer_pload_type_get_by_name(ANALYZER_RFC959_PLOAD_TYPE);
 	
 	if (!pload_type) {
-		pomlog(POMLOG_ERR "Payload type " ANALYZER_RFC822_PLOAD_TYPE " not found");
+		pomlog(POMLOG_ERR "Payload type " ANALYZER_RFC959_PLOAD_TYPE " not found");
 		return POM_ERR;
 	}
 
-	static struct data_item_reg pload_rfc822_data_items[ANALYZER_RFC822_PLOAD_DATA_COUNT] = { { 0 } };
-	pload_rfc822_data_items[analyzer_rfc822_pload_headers].name = "headers";
-	pload_rfc822_data_items[analyzer_rfc822_pload_headers].flags = DATA_REG_FLAG_LIST;
+	static struct data_item_reg pload_rfc959_data_items[ANALYZER_RFC959_PLOAD_DATA_COUNT] = { { 0 } };
+	pload_rfc959_data_items[analyzer_rfc959_pload_headers].name = "headers";
+	pload_rfc959_data_items[analyzer_rfc959_pload_headers].flags = DATA_REG_FLAG_LIST;
 
-	static struct data_reg pload_rfc822_data = {
-		.items = pload_rfc822_data_items,
-		.data_count = ANALYZER_RFC822_PLOAD_DATA_COUNT
+	static struct data_reg pload_rfc959_data = {
+		.items = pload_rfc959_data_items,
+		.data_count = ANALYZER_RFC959_PLOAD_DATA_COUNT
 	};
 
 	static struct analyzer_pload_reg pload_reg;
 	memset(&pload_reg, 0, sizeof(struct analyzer_pload_reg));
 	pload_reg.analyzer = analyzer;
-	pload_reg.analyze = analyzer_rfc822_pload_analyze;
-	pload_reg.process = analyzer_rfc822_pload_process;
-	pload_reg.cleanup = analyzer_rfc822_pload_cleanup;
-	pload_reg.data_reg = &pload_rfc822_data;
+	pload_reg.analyze = analyzer_rfc959_pload_analyze;
+	pload_reg.process = analyzer_rfc959_pload_process;
+	pload_reg.cleanup = analyzer_rfc959_pload_cleanup;
+	pload_reg.data_reg = &pload_rfc959_data;
 	pload_reg.flags = ANALYZER_PLOAD_PROCESS_PARTIAL;
 
 
@@ -164,6 +164,9 @@ static int analyzer_rfc822_pload_process(struct analyzer *analyzer, struct analy
 		analyzer_pload_buffer_set_container(priv->sub_pload, pload);
 
 		// Parse the headers
+		// "The data will be transferred in ASCII or
+        // EBCDIC type over the data connection as valid pathname
+        // strings separated by <CRLF> or <NL>."
 		unsigned int content_type_found = 0, content_encoding_found = 0;
 		struct data *data = analyzer_pload_buffer_get_data(pload);
 		struct data_item *itm = data[analyzer_rfc822_pload_headers].items;

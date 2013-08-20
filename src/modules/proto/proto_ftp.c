@@ -153,7 +153,7 @@ static int proto_ftp_process(void *proto_priv, struct packet *p, struct proto_pr
 	struct proto_process_stack *s_next = &stack[stack_index + 1];
 
 	if (conntrack_get_unique_from_parent(stack, stack_index) != POM_OK) {
-		pomlog(POMLOG_ERR "Coult not get conntrack entry");
+		pomlog(POMLOG_ERR "Could not get conntrack entry");
 		return PROTO_ERR;
 	}
 
@@ -284,17 +284,17 @@ static int proto_ftp_process(void *proto_priv, struct packet *p, struct proto_pr
 
 		} else {
 
-			// Client command
+			// Command comes from client
 
-			if (len < 4) { // Client commands are at least 4 bytes long
+			if (len < 2) { // Client commands are at least two bytes long
 				pomlog(POMLOG_DEBUG "Too short or invalid query from client");
 				priv->flags |= PROTO_FTP_FLAG_INVALID;
 				return POM_OK;
 			}
 
-			// Make sure it's a command by checking it's at least a four letter word
+			// Make sure it's a command by checking it's at least a two letter word
 			int i;
-			for (i = 0; i < 4; i++) {
+			for (i = 0; i < 2; i++) {
 				// In some case it can also be a base64 encoded word
 				if (! ((line[i] >= 'A' && line[i] <= 'Z')
 					|| (line[i] >= 'a' && line[i] <= 'z')
@@ -303,40 +303,40 @@ static int proto_ftp_process(void *proto_priv, struct packet *p, struct proto_pr
 					break;
 			}
 
-			if ((i < 4)) {
+			// Command must be at least a two letter word
+			if (i < 2) {
 				pomlog(POMLOG_DEBUG "Received invalid client command");
 				priv->flags |= PROTO_FTP_FLAG_INVALID;
 				return POM_OK;
 			}
 
-			if (!strncasecmp(line, "DATA", strlen("DATA")) && len == strlen("DATA")) {
+			// SMTP specific ?
+/*			if (!strncasecmp(line, "DATA", strlen("DATA")) && len == strlen("DATA")) {
 				priv->flags |= PROTO_FTP_FLAG_CLIENT_DATA;
-			}
+			}*/
 
 			if (event_has_listener(ppriv->evt_cmd)) {
 				struct event *evt = event_alloc(ppriv->evt_cmd);
 				if (!evt)
 					return PROTO_ERR;
 
+				// Command length is line length without space
 				size_t cmdlen = len;
 				char *space = memchr(line, ' ', len);
 				if (space)
 					cmdlen = space - line;
 
+				// data = data from event
 				struct data *evt_data = event_get_data(evt);
+				// Put the first 'cmdlen' characters from line in evt_data 
 				PTYPE_STRING_SETVAL_N(evt_data[proto_ftp_cmd_name].value, line, cmdlen);
 				data_set(evt_data[proto_ftp_cmd_name]);
-				if (space) {
+				if (space) { // CMD arg
 					PTYPE_STRING_SETVAL_N(evt_data[proto_ftp_cmd_arg].value, space + 1, len - 1 - cmdlen);
 					data_set(evt_data[proto_ftp_cmd_arg]);
 				}
 
-				if (priv->flags & PROTO_FTP_FLAG_CLIENT_DATA) {
-					// The event ends at the end of the message
-					priv->data_evt = evt;
-					return event_process_begin(evt, stack, stack_index, p->ts);
-				} else {
-					return event_process(evt, stack, stack_index, p->ts);
+				return event_process(evt, stack, stack_index, p->ts);
 				}
 			}
 
