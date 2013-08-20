@@ -295,25 +295,18 @@ static int proto_ftp_process(void *proto_priv, struct packet *p, struct proto_pr
 			// Make sure it's a command by checking it's at least a two letter word
 			int i;
 			for (i = 0; i < 2; i++) {
-				// In some case it can also be a base64 encoded word
+				// Commands are only composed of letters
 				if (! ((line[i] >= 'A' && line[i] <= 'Z')
-					|| (line[i] >= 'a' && line[i] <= 'z')
-					|| (line[i] >= '0' && line [i] <= '9')
-					|| line[i] == '='))
+					|| (line[i] >= 'a' && line[i] <= 'z'))
 					break;
 			}
 
-			// Command must be at least a two letter word
+			// Command must be at least a two letter word ('cd')
 			if (i < 2) {
 				pomlog(POMLOG_DEBUG "Received invalid client command");
 				priv->flags |= PROTO_FTP_FLAG_INVALID;
 				return POM_OK;
 			}
-
-			// SMTP specific ?
-/*			if (!strncasecmp(line, "DATA", strlen("DATA")) && len == strlen("DATA")) {
-				priv->flags |= PROTO_FTP_FLAG_CLIENT_DATA;
-			}*/
 
 			if (event_has_listener(ppriv->evt_cmd)) {
 				struct event *evt = event_alloc(ppriv->evt_cmd);
@@ -326,12 +319,11 @@ static int proto_ftp_process(void *proto_priv, struct packet *p, struct proto_pr
 				if (space)
 					cmdlen = space - line;
 
-				// data = data from event
 				struct data *evt_data = event_get_data(evt);
 				// Put the first 'cmdlen' characters from line in evt_data 
 				PTYPE_STRING_SETVAL_N(evt_data[proto_ftp_cmd_name].value, line, cmdlen);
 				data_set(evt_data[proto_ftp_cmd_name]);
-				if (space) { // CMD arg
+				if (space) { // Command with argument (USER john)
 					PTYPE_STRING_SETVAL_N(evt_data[proto_ftp_cmd_arg].value, space + 1, len - 1 - cmdlen);
 					data_set(evt_data[proto_ftp_cmd_arg]);
 				}
