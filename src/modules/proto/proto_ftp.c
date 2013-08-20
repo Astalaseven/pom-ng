@@ -150,7 +150,6 @@ static int proto_ftp_cleanup(void *proto_priv) {
 static int proto_ftp_process(void *proto_priv, struct packet *p, struct proto_process_stack *stack, unsigned int stack_index) {
 
 	struct proto_process_stack *s = &stack[stack_index];
-	struct proto_process_stack *s_next = &stack[stack_index + 1];
 
 	if (conntrack_get_unique_from_parent(stack, stack_index) != POM_OK) {
 		pomlog(POMLOG_ERR "Could not get conntrack entry");
@@ -297,7 +296,7 @@ static int proto_ftp_process(void *proto_priv, struct packet *p, struct proto_pr
 			for (i = 0; i < 2; i++) {
 				// Commands are only composed of letters
 				if (! ((line[i] >= 'A' && line[i] <= 'Z')
-					|| (line[i] >= 'a' && line[i] <= 'z'))
+					|| (line[i] >= 'a' && line[i] <= 'z')))
 					break;
 			}
 
@@ -333,10 +332,6 @@ static int proto_ftp_process(void *proto_priv, struct packet *p, struct proto_pr
 			}
 
 		}
-
-
-
-	}
 
 	return PROTO_OK;
 

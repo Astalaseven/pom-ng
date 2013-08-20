@@ -18,11 +18,11 @@
  *
  */
 
-#ifndef __PROTO_SMTP_H__
-#define __PROTO_SMTP_H__
+#ifndef __PROTO_FTP_H__
+#define __PROTO_FTP_H__
 
 
-#include <pom-ng/proto_smtp.h>
+#include <pom-ng/proto_ftp.h>
 
 #define SMTP_MAX_LINE 4096
 
@@ -34,13 +34,13 @@
 #define PROTO_FTP_DATA_END			"QUIT\r\n"
 #define PROTO_FTP_DATA_END_LEN		8
 
-struct proto_smtp_priv {
+struct proto_ftp_priv {
 
 	struct event_reg *evt_cmd;
 	struct event_reg *evt_reply;
 };
 
-struct proto_smtp_conntrack_priv {
+struct proto_ftp_conntrack_priv {
 
 	struct packet_stream_parser *parser[POM_DIR_TOT];
 	uint32_t flags;
@@ -49,13 +49,13 @@ struct proto_smtp_conntrack_priv {
 	struct event *data_evt, *reply_evt;
 };
 
-struct mod_reg_info* proto_smtp_reg_info();
-static int proto_smtp_init(struct proto *proto, struct registry_instance *i);
-static int proto_smtp_cleanup(void *proto_priv);
-static int proto_smtp_mod_register(struct mod_reg *mod);
-static int proto_smtp_process(void *proto_priv, struct packet *p, struct proto_process_stack *stack, unsigned int stack_index);
-static int proto_smtp_post_process(void *proto_priv, struct packet *p, struct proto_process_stack *stack, unsigned int stack_index);
-static int proto_smtp_conntrack_cleanup(void *ce_priv);
-static int proto_smtp_mod_unregister();
+struct mod_reg_info* proto_ftp_reg_info();
+static int proto_ftp_init(struct proto *proto, struct registry_instance *i);
+static int proto_ftp_cleanup(void *proto_priv);
+static int proto_ftp_mod_register(struct mod_reg *mod);
+static int proto_ftp_process(void *proto_priv, struct packet *p, struct proto_process_stack *stack, unsigned int stack_index);
+static int proto_ftp_post_process(void *proto_priv, struct packet *p, struct proto_process_stack *stack, unsigned int stack_index);
+static int proto_ftp_conntrack_cleanup(void *ce_priv);
+static int proto_ftp_mod_unregister();
 
 #endif
